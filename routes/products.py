@@ -17,15 +17,19 @@ def find_all():
     try:
         all_products = Product.query.all()
         result = products_schema.dump(all_products)
+        products_list = list(map(lambda product: {'name': product.get("name"), 'description': product.get(
+            "description"), 'price': product.get("price"), 'quantity': product.get("quantity")}, result))
 
         publish_to_rabbit_mq(create_rabbit_mq_payload(
-            "GET", "/product", request.user_agent.string, map(lambda product: product.as_dict(), result)))
-        return jsonify(result)
+            "GET", "/product", request.user_agent.string, products_list))
+
+        return products_schema.jsonify(result)
     except BaseException as err:
+        print(err)
         return jsonify({"error": "Internal Server Error", "statusCode": 500})
 
 
-@product_blueprint.route('/product/<id>', methods=['GET'])
+@ product_blueprint.route('/product/<id>', methods=['GET'])
 def get_one(id):
     try:
         product = Product.query.get(id)
@@ -38,7 +42,7 @@ def get_one(id):
         return jsonify({"error": "Internal Server Error", "statusCode": 500})
 
 
-@product_blueprint.route('/product', methods=['POST'])
+@ product_blueprint.route('/product', methods=['POST'])
 def create():
     try:
         name = request.json['name']
