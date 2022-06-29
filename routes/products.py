@@ -1,9 +1,9 @@
-import json
 from flask import Blueprint, jsonify, request
 from database.models.ProductModel import Product
 from database import db
 from schema.productSchema import ProductSchema
 from rabbitmq import create_rabbit_mq_payload, publish_to_rabbit_mq
+
 # Initialize Schema
 product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
