@@ -13,3 +13,6 @@ class Product(db.Model):
         self.description = description
         self.price = price
         self.quantity = quantity
+
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}

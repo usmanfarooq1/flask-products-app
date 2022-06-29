@@ -1,9 +1,9 @@
+import json
 from flask import Blueprint, jsonify, request
 from database.models.ProductModel import Product
 from database import db
 from schema.productSchema import ProductSchema
-
-
+from rabbitmq import create_rabbit_mq_payload, publish_to_rabbit_mq
 # Initialize Schema
 product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
@@ -14,15 +14,28 @@ product_blueprint = Blueprint('product', __name__)
 
 @product_blueprint.route('/product', methods=['GET'])
 def find_all():
-    all_products = Product.query.all()
-    result = products_schema.dump(all_products)
-    return jsonify(result)
+    try:
+        all_products = Product.query.all()
+        result = products_schema.dump(all_products)
+
+        publish_to_rabbit_mq(create_rabbit_mq_payload(
+            "GET", "/product", request.user_agent.string, map(lambda product: product.as_dict(), result)))
+        return jsonify(result)
+    except BaseException as err:
+        return jsonify({"error": "Internal Server Error", "statusCode": 500})
 
 
 @product_blueprint.route('/product/<id>', methods=['GET'])
 def get_one(id):
-    product = Product.query.get(id)
-    return product_schema.jsonify(product)
+    try:
+        product = Product.query.get(id)
+
+        publish_to_rabbit_mq(create_rabbit_mq_payload(
+            "GET", "/product/"+id, request.user_agent.string, product.as_dict()))
+
+        return product_schema.jsonify(product)
+    except BaseException as err:
+        return jsonify({"error": "Internal Server Error", "statusCode": 500})
 
 
 @product_blueprint.route('/product', methods=['POST'])
@@ -38,12 +51,15 @@ def create():
         db.session.add(new_product)
         db.session.commit()
 
+        publish_to_rabbit_mq(create_rabbit_mq_payload(
+            "POST", "/product", request.user_agent.string, new_product.as_dict()))
+
         return product_schema.jsonify(new_product)
     except BaseException as err:
         return jsonify({"error": "Internal Server Error", "statusCode": 500})
 
 
-@product_blueprint.route('/product/<id>', methods=['PUT'])
+@ product_blueprint.route('/product/<id>', methods=['PUT'])
 def update(id):
     try:
         product = Product.query.get(id)
@@ -54,17 +70,21 @@ def update(id):
 
         db.session.commit()
 
+        publish_to_rabbit_mq(create_rabbit_mq_payload(
+            "PUT", "/product/"+id, request.user_agent.string, product.as_dict()))
         return product_schema.jsonify(product)
     except BaseException as err:
         return jsonify({"error": "Internal Server Error", "statusCode": 500})
 
 
-@product_blueprint.route('/product/<id>', methods=['DELETE'])
+@ product_blueprint.route('/product/<id>', methods=['DELETE'])
 def delete(id):
     try:
         product = Product.query.get(id)
         db.session.delete(product)
         db.session.commit()
+        publish_to_rabbit_mq(create_rabbit_mq_payload(
+            "DELETE", "/product/"+id, request.user_agent.string, product.as_dict()))
         return jsonify({"name": product.name})
     except BaseException as err:
         return jsonify({"error": "Internal Server Error", "statusCode": 500})
