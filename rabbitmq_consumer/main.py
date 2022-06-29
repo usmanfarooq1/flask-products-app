@@ -51,17 +51,25 @@ def callback(ch, method, properties, body):
               agent=log_raw_object.get("agent"), payload=json.dumps(log_raw_object.get("payload")))
     session.add(log)
     print(" [x] Received a message \n")
-    # time.sleep()
+    print(" [x] A long process is happening..... ")
+    time.sleep(3)
 
     session.commit()
 
     query_get_count = session.query(Log).filter_by(action='GET')
     query_post_count = session.query(Log).filter_by(action='POST')
+    query_put_count = session.query(Log).filter_by(action='PUT')
+    query_delete_count = session.query(Log).filter_by(action='DELETE')
 
     print(" [x] Number of requests made with [GET] METHOD",
           query_get_count.count())
     print(
         " [x] Number of requests made with [POST] METHOD", query_post_count.count())
+    print(
+        " [x] Number of requests made with [PUT] METHOD", query_put_count.count())
+    print(
+        " [x] Number of requests made with [DELETE] METHOD", query_delete_count.count())
+
     print(" [x] Done")
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
